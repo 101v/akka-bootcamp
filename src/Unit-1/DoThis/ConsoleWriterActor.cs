@@ -24,7 +24,7 @@ namespace WinTail
                 {
                     var msg = message as Messages.InputSuccess;
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine(msg.Reason);
+                    Console.Write(msg.Reason);
                     break;
                 }
                 default:

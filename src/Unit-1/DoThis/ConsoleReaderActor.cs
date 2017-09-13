@@ -43,9 +43,7 @@ namespace WinTail
 
         private void DoPrintInstruction()
         {
-            Console.WriteLine("Write whatever you want into the console!");
-            Console.WriteLine("Some entries will pass validation, and some won't...\n\n");
-            Console.WriteLine("Type 'exit' to quit this application at any time.\n");
+            Console.WriteLine("Please provide URI of a log file on disk.\n");
         }
     }
 }
