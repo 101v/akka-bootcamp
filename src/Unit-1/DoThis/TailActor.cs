@@ -7,7 +7,9 @@ namespace WinTail
     public class TailActor : UntypedActor
     {
         private readonly IActorRef _reporterActor;
-        private readonly StreamReader _fileStreamReader;
+        private FileObserver _fileObserver;
+        private StreamReader _fileStreamReader;
+        private readonly string _filePath;
 
         #region Message types
 
@@ -50,15 +52,29 @@ namespace WinTail
         public TailActor(IActorRef reporterActor, string filePath)
         {
             _reporterActor = reporterActor;
+            _filePath = filePath;
+        }
 
-            var fileObserver = new FileObserver(Self, Path.GetFullPath(filePath));
-            fileObserver.Start();
+        protected override void PreStart()
+        {
+            _fileObserver = new FileObserver(Self, Path.GetFullPath(_filePath));
+            _fileObserver.Start();
 
-            var fileStream = new FileStream(Path.GetFullPath(filePath), FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            _fileStreamReader =  new StreamReader(fileStream, Encoding.UTF8);
+            var fileStream = new FileStream(Path.GetFullPath(_filePath), FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            _fileStreamReader = new StreamReader(fileStream, Encoding.UTF8);
 
             var text = _fileStreamReader.ReadToEnd();
-            Self.Tell(new InitialRead(filePath, text));
+            Self.Tell(new InitialRead(_filePath, text));
+
+        }
+
+        protected override void PostStop()
+        {
+            _fileObserver.Dispose();
+            _fileObserver = null;
+            _fileStreamReader.Close();
+            _fileStreamReader.Dispose();
+            base.PostStop();
         }
 
         protected override void OnReceive(object message)
