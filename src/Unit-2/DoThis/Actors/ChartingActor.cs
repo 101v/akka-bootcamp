@@ -8,7 +8,7 @@ using Akka.Actor;
 
 namespace ChartApp.Actors
 {
-    public class ChartingActor : ReceiveActor
+    public class ChartingActor : ReceiveActor, IWithUnboundedStash
     {
         #region Messages
 
@@ -50,7 +50,7 @@ namespace ChartApp.Actors
         private readonly Button _pauseButton;
         private Dictionary<string, Series> _seriesIndex;
         private const int MaxPoints = 250;
-        private int xPosCounter = 0;
+        private int _xPosCounter = 0;
 
         public ChartingActor(Chart chart, Button pauseButton) : this(chart, new Dictionary<string, Series>(), pauseButton)
         {
@@ -87,10 +87,14 @@ namespace ChartApp.Actors
         private void Paused()
         {
             Receive<Metric>(metric => HandlePausedMatrics(metric));
+            Receive<AddSeries>(series => Stash.Stash());
+            Receive<RemoveSeries>(series => Stash.Stash());
+
             Receive<TogglePause>(pause =>
             {
                 SetPauseButtonText(false);
                 UnbecomeStacked();
+                Stash.UnstashAll();
             });
 
         }
@@ -153,7 +157,7 @@ namespace ChartApp.Actors
             if (!string.IsNullOrEmpty(metric.Series) && _seriesIndex.ContainsKey(metric.Series))
             {
                 var series = _seriesIndex[metric.Series];
-                series.Points.AddXY(xPosCounter++, metric.CounterValue);
+                series.Points.AddXY(_xPosCounter++, metric.CounterValue);
                 while (series.Points.Count > MaxPoints) series.Points.RemoveAt(0);
                 SetChartBoundries();
             }
@@ -164,7 +168,7 @@ namespace ChartApp.Actors
             if (!string.IsNullOrEmpty(metric.Series) && _seriesIndex.ContainsKey(metric.Series))
             {
                 var series = _seriesIndex[metric.Series];
-                series.Points.AddXY(xPosCounter++, 0.0d);
+                series.Points.AddXY(_xPosCounter++, 0.0d);
                 while (series.Points.Count > MaxPoints) series.Points.RemoveAt(0);
                 SetChartBoundries();
             }
@@ -180,8 +184,8 @@ namespace ChartApp.Actors
             var allPoints = _seriesIndex.Values.SelectMany(series => series.Points).ToList();
             var yValues = allPoints.SelectMany(point => point.YValues).ToList();
 
-            maxAxisX = xPosCounter;
-            minAxisX = xPosCounter - MaxPoints;
+            maxAxisX = _xPosCounter;
+            minAxisX = _xPosCounter - MaxPoints;
             maxAxisY = yValues.Count > 0 ? Math.Ceiling(yValues.Max()) : 1.0d;
             minAxisY = yValues.Count > 0 ? Math.Floor(yValues.Min()) : 0.0d;
 
@@ -194,5 +198,7 @@ namespace ChartApp.Actors
                 area.AxisY.Maximum = maxAxisY;
             }
         }
+
+        public IStash Stash { get; set; }
     }
 }
